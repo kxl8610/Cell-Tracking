@@ -1,0 +1,143 @@
+
+S4 Appendix – MATLAB code for quantification of parallel migration pattern
+%% CMSR Cell Tracking Contact Time 
+clear
+clc
+
+%Read data that has been processed using data analysis code. 
+Data=readmatrix('Copy of C1-Mouse 95, 6hr_Tracks.xlsx', 'Sheet', 'Sheet2'); 
+Data1=readmatrix('Copy of C2-Mouse95,6hr_Tracks.xlsx', 'Sheet', 'Sheet2'); 
+
+%Subset data to recognize the particle IDs within track data
+partid = [Data(2:end,1)];
+partid1 = [Data1(2:end,1)];
+
+d=1; %Comparison variable 
+c=1; %Column count variable
+r=1; %Row count variable 
+
+%Identify matrix length 
+n=length(partid);
+
+for i=1:n %Matrix formatting. This is to determine which data parts we need. 
+    if partid(i) == d;
+        ID{r,c}= Data(i,(1:5));
+        r=r+1;
+    else 
+        d=d+1;
+        c=c+1;
+        ID{1,c}=Data(i,(1:5));
+        r=2;
+    end
+end
+
+%Imbedding the matrix within a matrix(All the required information we need
+%for each particle. 
+for c=1:length(ID(1,:))
+    iso{c} = cell2mat(ID(:,c));
+end
+
+j=length(partid1);
+d1=1; %Comparison variable 
+c1=1; %Column count variable
+r1=1; %Row count variable 
+
+%Similar process but for the tracks for the bacteria. 
+for i=1:j
+    if partid1(i) == d1;
+        ID1{r1,c1}= Data1(i,(1:5));
+        r1=r1+1;
+    else 
+        d1=d1+1;
+        c1=c1+1;
+        ID1{1,c1}=Data1(i,(1:5));
+        r1=2;
+    end
+end
+
+%Imbedding the matrix information of each bacteria into a new matrix
+for c1=1:length(ID1(1,:))
+    iso1{c1} = cell2mat(ID1(:,c1));
+end
+
+%Identifying the length of both matrix groups. 
+%This is important because we need this information for comparison 
+p=length(iso);
+n=length(iso1);
+
+%Bulk of the for loop. It goes through the matrix information and compares
+%the different x y coordinates between the two data files to access contact
+%time. If the centroids of cells are within 16 microns of one another, they
+%count that as one contact. This code will output the total contact frames
+%and with which bacterial cell. 
+for m = 1:p;
+    cell=iso{m};
+    xy=cell(:,4:5);
+    time= cell(:,3);
+    for i= 1:n;
+        cell1=iso1{i};
+        xy1=cell1(:,4:5);
+        time1= cell1(:,3);
+        o=length(xy);
+        l=length(xy1);
+        count=0;
+        for k= 1:o;
+            comp=[xy(k,1),xy(k,2)];
+            comptime=time(k);
+            for c = 1:l;
+                comp1=[xy1(c,1),xy1(c,2)];
+                comptime1=time1(c);
+                if abs(comptime-comptime1) == 0;
+                    dy=(xy1(c,2))-(xy(k,2));
+                    dx=(xy1(c,1))-(xy(k,1));
+                    if sqrt((dy^2)+(dx^2)) <= 16;
+                    count= count + 1;
+                    else
+                    count=count;
+                    end
+                end
+            end
+                if count ~=0;
+                iso{m}(c,6)=iso1{i}(1,1);
+                iso{m}(c,7)=count; 
+                end
+        end
+    end
+end
+
+%This portion is the clean up the output for most relavent information. 
+%Eliminates the 0s that are outputted in the matrix as a result of the loop
+z=1;
+v=length(iso);
+for m = 1:v ;
+    cell2=iso{m};
+    if width(cell2)==7;
+        isosub{1,m}= cell2(:,[1 6 7]);
+    else 
+    end
+end
+
+%Isosub is the subset of the matrix that allows us to look at the particle
+%in contact with (first column) and the (contact time)
+isosub=isosub(~cellfun('isempty',isosub));
+
+v=width(isosub);
+for m= 1:v;
+    cell2=isosub{m};
+    ind=find(cell2(:,2)==0);
+    pd=([cell2(1,1) 0]);
+    cell2(ind,:)=[];
+    isosub{m}=cat(2,pd,cell2);
+end 
+
+%Concatenates the data and titles 
+final=cat(1, isosub{1:v});
+final1=final(:, [1 4 5]);
+titles= ["Original Neutrophil particle ID", "Bacterial ParticleID in contact with", "Timeframes in Contact"];
+final1=cat(1, titles, final1);
+
+%Write the information to a new sheet of the neutrophil data file.
+writematrix(final1, 'Copy of C1-Mouse 95, 6hr_Tracks.xlsx', 'Sheet', 'Sheet4');
+
+
+
